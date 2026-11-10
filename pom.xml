@@ -60,11 +60,22 @@
             <artifactId>spring-boot-starter-webflux-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- This is ONLY needed if you want security testing utilities -->
+        <!-- Security testing utilities for WebTestClient; the runtime starter comes
+             in transitively with spring-boot-starter-security-oauth2-client -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!--
+         Netty tries to optimize DNS lookups on macOS by loading a native Mac-specific DNS resolver library. If your project doesn't explicitly include this dependency, Netty falls back to standard Java DNS resolution. While your app will still work, it can cause slow or incorrect DNS routing on macOS.
+         -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-resolver-dns-native-macos</artifactId>
+            <classifier>osx-aarch_64</classifier>
+            <version>4.1.99.Final</version>
         </dependency>
 
     </dependencies>

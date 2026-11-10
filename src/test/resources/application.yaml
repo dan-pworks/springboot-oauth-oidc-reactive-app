@@ -1,0 +1,33 @@
+# Test-only configuration. Replaces the main application.yaml on the test
+# classpath so tests run offline, without Microsoft credentials and without the
+# issuer-uri metadata fetch at startup.
+spring:
+  application:
+    name: parra-works-web
+  security:
+    oauth2:
+      client:
+        registration:
+          microsoft:
+            client-id: test-client
+            client-secret: test-secret
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - openid
+              - profile
+              - email
+            provider: microsoft
+        provider:
+          microsoft:
+            # Dummy endpoints; never contacted because tests mock the OIDC login.
+            authorization-uri: https://login.example.com/authorize
+            token-uri: https://login.example.com/token
+            jwk-set-uri: https://login.example.com/keys
+            user-info-uri: https://graph.example.com/oidc/userinfo
+            user-name-attribute: sub
+
+server:
+  reactive:
+    session:
+      timeout: 5m

@@ -1,3 +1,43 @@
 spring:
   application:
     name: parra-works-web
+  security:
+    oauth2:
+      client:
+        registration:
+          # Registration id "microsoft" matches the button link in authenticate.html.
+          microsoft:
+            # Placeholders keep the app bootable without credentials; real values come
+            # from the environment. Sign-in fails until they are set.
+            client-id: ${MICROSOFT_CLIENT_ID}
+            client-secret: ${MICROSOFT_CLIENT_SECRET}
+            # Required: Boot does not default the grant type; startup fails without it.
+            authorization-grant-type: authorization_code
+            scope:
+              - openid
+              - profile
+              - email
+            provider: microsoft
+        provider:
+          # Endpoints taken from
+          # https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+          microsoft:
+            issuer-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/v2.0
+#            authorization-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize
+#            token-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token
+#            jwk-set-uri: https://login.microsoftonline.com/common/discovery/v2.0/keys
+#            user-info-uri: https://graph.microsoft.com/oidc/userinfo
+            user-name-attribute: sub
+
+server:
+  reactive:
+    session:
+      timeout: 5m
+
+#logging:
+#  level:
+#    org.springframework.security: DEBUG
+#    org.springframework.security.oauth2: DEBUG
+#    # Optional: Log the exact HTTP requests and responses sent to Microsoft
+#    org.springframework.web.client.RestTemplate: DEBUG
+#    org.springframework.web.reactive.function.client.WebClient: DEBUG

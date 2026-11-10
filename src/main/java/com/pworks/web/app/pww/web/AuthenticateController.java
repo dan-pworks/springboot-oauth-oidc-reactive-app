@@ -8,11 +8,16 @@ import org.springframework.web.bind.annotation.GetMapping;
  * authorization endpoints, so the OAuth 2.0 client module owns the actual flow.
  */
 @Controller
-public class LoginController {
+public class AuthenticateController {
 
-	@GetMapping("/login")
+	/**
+	 * Shows the sign-in page.
+	 *
+	 * @return the login view name
+	 */
+	@GetMapping("/authenticate")
 	public String login() {
-		return "login";
+		return "authenticate";
 	}
 
 }

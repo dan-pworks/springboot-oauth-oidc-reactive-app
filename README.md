@@ -7,16 +7,30 @@ Maven artifact: `parra-works-web` · base package: `com.pworks.web.app.pww`
 
 ## Project Status
 
-The project is a working skeleton. Sign-in is not wired yet.
+Microsoft sign-in is configured and works once credentials are supplied. Google and
+Apple are still pending.
 
 | Area | State |
 | --- | --- |
 | Spring Boot 4.1.2 on Java 25, Maven | Done |
 | WebFlux + Thymeleaf, devtools | Done |
 | Docker Compose support (`spring-boot-docker-compose`) | Wired, no services defined |
-| Login and home pages with controllers | Done, UI only |
-| Spring Security, OAuth 2.0 client, providers | Not started |
-| Session handling and sign-out | Not started, buttons in place |
+| Login and home pages with controllers | Done |
+| Spring Security, OAuth 2.0 client | Done |
+| Microsoft OIDC registration | Done, needs client credentials |
+| Google and Apple registrations | Not started |
+| Session with 5-minute expiry, sign-out | Done, in memory |
+
+## Recent Commits
+
+Taken from `git log`; the repository history is authoritative.
+
+| Commit | Branch | Summary |
+| --- | --- | --- |
+| `40a5418` | `feature/add_oidc_oauth_support` | Added `spring-boot-starter-security-oauth2-client` and security test utilities to `pom.xml` |
+| `06f6632` | `main`, `feature/add_login_home_pages` | Added login and home pages, their controllers, `AGENTS.md`, and updated README and LOG |
+| `4eec56e` | `feature/scaffold_project` | Added the Spring Boot project; updated README and LOG |
+| `ee40e21` | initial | Added README and `.gitignore` |
 
 ## Architecture
 
@@ -44,30 +58,35 @@ Sign-in flow:
 
 Available now:
 
+- Sign in with Microsoft through OpenID Connect (authorization code flow)
 - Login page at `/login` with **Sign in with Microsoft** and **Sign in with Google**
   buttons, each with its provider logo
-- Home page at `/` with the user's name and email and a sign-out button
+- Home page at `/` with the user's name and email from the OIDC claims, plus a
+  sign-out button
+- Protected routes: anonymous or expired sessions are redirected to `/login`
+- Session expiry after 5 minutes, in-memory store
 
-Planned for the first milestone:
+Planned:
 
-- Working OAuth 2.0 / OpenID Connect sign-in with Google, Microsoft, and Apple
-- Home page populated from the signed-in user's claims
-- Working sign-out that closes the session
-- Session expiry after 5 minutes
-- In-memory session store, single instance
+- Sign in with Google and Apple
+- Session extension dialog on the frontend
+- MongoDB persistence and Redis session cache
 
 ## Routes
 
-| Route | Page |
-| --- | --- |
-| `GET /login` | Sign-in page with provider buttons |
-| `GET /` | Home page with user info and sign-out |
-| `GET /css/app.css` | Shared stylesheet |
+| Route | Access | Purpose |
+| --- | --- | --- |
+| `GET /login` | Public | Sign-in page with provider buttons |
+| `GET /` | Authenticated | Home page with user info and sign-out |
+| `GET /oauth2/authorization/microsoft` | Public | Starts the Microsoft login |
+| `GET /login/oauth2/code/microsoft` | Public | Microsoft redirect URI |
+| `POST /logout` | Authenticated | Closes the session, redirects to `/login?logout` |
+| `GET /css/app.css` | Public | Shared stylesheet |
 
 The provider buttons link to `/oauth2/authorization/{registrationId}` with the ids
-`google` and `microsoft`. Those endpoints return 404 until the OAuth 2.0 client is
-added, and the registration ids must stay `google` and `microsoft` for the links to
-resolve.
+`google` and `microsoft`. Only the `microsoft` registration exists, so the Google
+button returns 404 until that registration is added; the ids must keep matching the
+button links.
 
 ## Tech Stack
 
@@ -77,11 +96,11 @@ resolve.
 | Framework | Spring Boot 4.1.2 |
 | Web | Spring WebFlux, Reactor Netty |
 | Views | Thymeleaf |
-| Security | Spring Security OAuth 2.0 Client / OpenID Connect — not added yet |
+| Security | Spring Security WebFlux, OAuth 2.0 Client / OpenID Connect |
 | Build | Maven, with `mvnw` wrapper scripts |
-| Session | In-memory reactive `WebSession` — planned |
+| Session | In-memory reactive `WebSession`, 5-minute timeout |
 | Containers | Docker Compose via `spring-boot-docker-compose` |
-| Testing | JUnit 5, AssertJ, Mockito (through the Spring Boot test starters) |
+| Testing | JUnit 5, AssertJ, Mockito, Spring Security test utilities |
 | Persistence | None yet — MongoDB planned |
 
 ## Prerequisites
@@ -89,8 +108,9 @@ resolve.
 - JDK 25
 - Maven, or a repaired Maven wrapper (see [Getting Started](#getting-started))
 - Docker with Docker Compose — only needed once `compose.yaml` defines services
-- An OAuth client registered with each provider you want to enable, with the
-  redirect URI `http://localhost:8080/login/oauth2/code/{provider}`
+- A Microsoft Entra ID app registration of type **Web** with the redirect URI
+  `http://localhost:8080/login/oauth2/code/microsoft` and delegated Microsoft Graph
+  scopes `openid`, `profile`, `email`
 
 ## Project Structure
 
@@ -106,6 +126,8 @@ resolve.
     ├── main/
     │   ├── java/com/pworks/web/app/pww/
     │   │   ├── ParraWorksWebApplication.java
+    │   │   ├── security/
+    │   │   │   └── SecurityConfig.java
     │   │   └── web/
     │   │       ├── HomeController.java
     │   │       └── LoginController.java
@@ -129,8 +151,8 @@ resolve.
 mvn spring-boot:run
 ```
 
-The app starts on <http://localhost:8080>. `/login` renders the sign-in page and `/`
-renders the home page with placeholders, since no user is signed in yet.
+The app starts on <http://localhost:8080>. `/` redirects to `/login` until a user
+signs in with Microsoft.
 
 > The wrapper is currently incomplete: `.mvn/wrapper/maven-wrapper.properties` is
 > missing, so `./mvnw` fails. Restore it with `mvn -N wrapper:wrapper` (or by
@@ -152,58 +174,77 @@ service is added in a later milestone.
 
 ### Try it
 
-1. Open <http://localhost:8080/login>; the sign-in page shows both providers.
-2. Open <http://localhost:8080/>; the home page shows the name and email
-   placeholders and the sign-out button.
-3. The provider buttons and the sign-out form do nothing yet: the OAuth 2.0 client
-   and session module are the next milestone.
+1. Export `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`.
+2. Start the app and open <http://localhost:8080>.
+3. You are redirected to `/login`; choose **Sign in with Microsoft**.
+4. Complete the Microsoft sign-in.
+5. The home page shows your name and email, with the sign-out button below.
+6. Sign out, or wait 5 minutes for the session to expire, and you are sent back to
+   the login page.
 
-Once security is wired:
-
-1. Open <http://localhost:8080>.
-2. Choose Google or Microsoft.
-3. Complete the provider's sign-in flow.
-4. The home page shows your email and full name.
-5. Use the sign-out button to close the session.
+The Google button returns 404 until its registration is added.
 
 ## Configuration
 
-No OAuth client is configured yet. `application.yaml` currently sets only the
-application name:
+`application.yaml` registers Microsoft and sets the session timeout:
 
 ```yaml
 spring:
-  application:
-    name: parra-works-web
+  security:
+    oauth2:
+      client:
+        registration:
+          microsoft:
+            client-id: ${MICROSOFT_CLIENT_ID:not-configured}
+            client-secret: ${MICROSOFT_CLIENT_SECRET:not-configured}
+            client-name: Microsoft
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid,profile,email
+        provider:
+          microsoft:
+            authorization-uri: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+            token-uri: https://login.microsoftonline.com/common/oauth2/v2.0/token
+            jwk-set-uri: https://login.microsoftonline.com/common/discovery/v2.0/keys
+            user-info-uri: https://graph.microsoft.com/oidc/userinfo
+            user-name-attribute: sub
+server:
+  reactive:
+    session:
+      timeout: 5m
 ```
 
-Credentials and client IDs will come from environment variables, bound through
-Spring Boot relaxed binding to
-`spring.security.oauth2.client.registration.{provider}.*`.
+The provider endpoints come from Microsoft's
+[OpenID configuration](https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration).
+They are listed explicitly so the application does not fetch issuer metadata at
+startup.
 
 | Variable | Description |
 | --- | --- |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `MICROSOFT_CLIENT_ID` | Microsoft Entra ID application (client) ID |
-| `MICROSOFT_CLIENT_SECRET` | Microsoft client secret |
-| `APPLE_CLIENT_ID` | Apple service ID |
-| `APPLE_TEAM_ID` | Apple developer team ID |
-| `APPLE_KEY_ID` | Apple private key ID |
-| `APPLE_PRIVATE_KEY` | Apple private key (PEM) |
+| `MICROSOFT_CLIENT_SECRET` | Microsoft client secret value |
+
+The `${VAR:not-configured}` defaults keep the app bootable without credentials so
+tests can run; sign-in fails until the variables are set. Google and Apple will be
+added the same way:
+
+| Variable | Planned for |
+| --- | --- |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google |
+| `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | Apple |
 
 > Never commit client secrets, keys, or tokens. Use environment variables or a
 > git-ignored local file.
 
 ## Session Behavior
 
-Planned, not implemented yet:
-
-- Created on successful sign-in and holds the user's email and full name.
+- Created on successful Microsoft sign-in; holds the OIDC principal (name, email,
+  claims).
 - Expires after 5 minutes, set by `server.reactive.session.timeout=5m` in
   `application.yaml`.
 - Stored in memory only: sessions are lost on restart and are not shared across
   instances.
+- Anonymous or expired sessions are redirected to `/login`.
 - Extending a session from a frontend dialog is planned; no endpoint exists yet.
 
 ## Testing
@@ -212,22 +253,23 @@ Planned, not implemented yet:
 mvn test
 ```
 
-Three tests exist: `ParraWorksWebApplicationTests.contextLoads()` boots the Spring
-context, and `PageControllerTests` asserts that `/login` offers both providers and
-that `/` renders the user info and sign-out button. Unit tests use JUnit 5 and
-Mockito. Integration tests with Testcontainers come later, together with MongoDB and
-Redis.
+Four tests exist:
+
+- `ParraWorksWebApplicationTests.contextLoads()` boots the full context.
+- `PageControllerTests` checks that `/login` is public and offers both providers,
+  that anonymous requests to `/` are redirected to `/login`, and that an
+  authenticated OIDC user sees name, email, and the sign-out form.
+
+Unit tests use JUnit 5 and Mockito. `spring-boot-starter-security-test` supplies
+`mockOidcLogin` for WebTestClient. Integration tests with Testcontainers come later,
+together with MongoDB and Redis.
 
 ## Roadmap
 
-- Add `spring-boot-starter-security` and `spring-boot-starter-security-oauth2-client`
-- Configure Google, Microsoft, and Apple registrations
-- Protect `/` and redirect signed-out or expired sessions to `/login`
-- Populate the home page from the OIDC principal
-- Reactive session with 5-minute expiry and working sign-out
+- Configure the Google and Apple registrations
+- Session extension dialog on the frontend
 - App service in `compose.yaml` for the containerized run
 - MongoDB for user persistence, Redis for session cache
-- Frontend dialog to extend an active session
 - Testcontainers integration tests
 - Public GitHub repository with CI
 

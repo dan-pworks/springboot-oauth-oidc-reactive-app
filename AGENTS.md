@@ -26,7 +26,10 @@ MVN=$(find ~/.m2/wrapper/dists/apache-maven-3.10.0 -name mvn -type f | head -1)
 
 - Single test: `"$MVN" test -Dtest=ParraWorksWebApplicationTests`
 - Single method: `"$MVN" test -Dtest=ParraWorksWebApplicationTests#contextLoads`
-- The test suite passes today: one context-load test.
+- The test suite passes today: context load plus three page/security tests.
+- `PageControllerTests` uses `mockOidcLogin()` from `spring-security-test`; it needs
+  a mock-based WebTestClient, so the class uses default `@SpringBootTest` (MOCK
+  environment), not RANDOM_PORT.
 - To repair the wrapper permanently, restore the properties file with the
   `distributionUrl` for Maven 3.10.0; do not hand-edit `mvnw`.
 - The JDK on PATH is 26 while the project targets 25. The build succeeds, but
@@ -40,8 +43,15 @@ MVN=$(find ~/.m2/wrapper/dists/apache-maven-3.10.0 -name mvn -type f | head -1)
 - Test starters are per feature (`spring-boot-starter-webflux-test`,
   `spring-boot-starter-thymeleaf-test`). Follow that pattern instead of adding the
   old all-in-one `spring-boot-starter-test`.
-- No security starter is on the classpath yet; OAuth properties bind to nothing
-  until it is added.
+- Security is now on the classpath: `spring-boot-starter-security-oauth2-client`
+  and, for tests, `spring-boot-starter-security-test` (use the `-test` artifact; a
+  plain `-security` starter in test scope duplicates runtime classes and adds no
+  utilities).
+- WebFlux defers the CSRF token as a `Mono`; Thymeleaf cannot read it, so
+  `SecurityConfig#csrfTokenViewFilter` copies the resolved token to `_csrf`. Remove
+  that filter only with a replacement plan for the logout form token.
+- `application.yaml` uses `${MICROSOFT_CLIENT_ID:not-configured}` placeholders so
+  the app boots and tests run without secrets; empty defaults make startup fail.
 - Session timeout property is `server.reactive.session.timeout` (present in the
   `spring-boot-web-server` metadata). Sessions are reactive `WebSession`, not
   servlet `HttpSession`; any servlet-style security example is wrong here.
