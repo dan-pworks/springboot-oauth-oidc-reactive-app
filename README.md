@@ -14,8 +14,9 @@ The project is a working skeleton. Sign-in is not wired yet.
 | Spring Boot 4.1.2 on Java 25, Maven | Done |
 | WebFlux + Thymeleaf, devtools | Done |
 | Docker Compose support (`spring-boot-docker-compose`) | Wired, no services defined |
+| Login and home pages with controllers | Done, UI only |
 | Spring Security, OAuth 2.0 client, providers | Not started |
-| Session handling, home page, sign-out | Not started |
+| Session handling and sign-out | Not started, buttons in place |
 
 ## Architecture
 
@@ -41,13 +42,32 @@ Sign-in flow:
 
 ## Features
 
+Available now:
+
+- Login page at `/login` with **Sign in with Microsoft** and **Sign in with Google**
+  buttons, each with its provider logo
+- Home page at `/` with the user's name and email and a sign-out button
+
 Planned for the first milestone:
 
-- Sign in with Google, Microsoft, or Apple
-- Home page displaying the signed-in user's email and full name
-- Sign out button that closes the session
+- Working OAuth 2.0 / OpenID Connect sign-in with Google, Microsoft, and Apple
+- Home page populated from the signed-in user's claims
+- Working sign-out that closes the session
 - Session expiry after 5 minutes
 - In-memory session store, single instance
+
+## Routes
+
+| Route | Page |
+| --- | --- |
+| `GET /login` | Sign-in page with provider buttons |
+| `GET /` | Home page with user info and sign-out |
+| `GET /css/app.css` | Shared stylesheet |
+
+The provider buttons link to `/oauth2/authorization/{registrationId}` with the ids
+`google` and `microsoft`. Those endpoints return 404 until the OAuth 2.0 client is
+added, and the registration ids must stay `google` and `microsoft` for the links to
+resolve.
 
 ## Tech Stack
 
@@ -85,12 +105,20 @@ Planned for the first milestone:
 └── src/
     ├── main/
     │   ├── java/com/pworks/web/app/pww/
-    │   │   └── ParraWorksWebApplication.java
+    │   │   ├── ParraWorksWebApplication.java
+    │   │   └── web/
+    │   │       ├── HomeController.java
+    │   │       └── LoginController.java
     │   └── resources/
-    │       └── application.yaml
+    │       ├── application.yaml
+    │       ├── static/css/app.css
+    │       └── templates/
+    │           ├── home.html
+    │           └── login.html
     └── test/
         └── java/com/pworks/web/app/pww/
-            └── ParraWorksWebApplicationTests.java
+            ├── ParraWorksWebApplicationTests.java
+            └── web/PageControllerTests.java
 ```
 
 ## Getting Started
@@ -101,8 +129,8 @@ Planned for the first milestone:
 mvn spring-boot:run
 ```
 
-The app starts on <http://localhost:8080>; for now it only renders the default
-error page, since no controllers or templates exist.
+The app starts on <http://localhost:8080>. `/login` renders the sign-in page and `/`
+renders the home page with placeholders, since no user is signed in yet.
 
 > The wrapper is currently incomplete: `.mvn/wrapper/maven-wrapper.properties` is
 > missing, so `./mvnw` fails. Restore it with `mvn -N wrapper:wrapper` (or by
@@ -124,10 +152,16 @@ service is added in a later milestone.
 
 ### Try it
 
-Not available yet. Once security is wired:
+1. Open <http://localhost:8080/login>; the sign-in page shows both providers.
+2. Open <http://localhost:8080/>; the home page shows the name and email
+   placeholders and the sign-out button.
+3. The provider buttons and the sign-out form do nothing yet: the OAuth 2.0 client
+   and session module are the next milestone.
+
+Once security is wired:
 
 1. Open <http://localhost:8080>.
-2. Choose Google, Microsoft, or Apple.
+2. Choose Google or Microsoft.
 3. Complete the provider's sign-in flow.
 4. The home page shows your email and full name.
 5. Use the sign-out button to close the session.
@@ -178,16 +212,19 @@ Planned, not implemented yet:
 mvn test
 ```
 
-One test exists: `ParraWorksWebApplicationTests.contextLoads()` boots the Spring
-context. Unit tests use JUnit 5 and Mockito. Integration tests with Testcontainers
-come later, together with MongoDB and Redis.
+Three tests exist: `ParraWorksWebApplicationTests.contextLoads()` boots the Spring
+context, and `PageControllerTests` asserts that `/login` offers both providers and
+that `/` renders the user info and sign-out button. Unit tests use JUnit 5 and
+Mockito. Integration tests with Testcontainers come later, together with MongoDB and
+Redis.
 
 ## Roadmap
 
-- Add `spring-boot-starter-security` and `spring-boot-starter-oauth2-client`
+- Add `spring-boot-starter-security` and `spring-boot-starter-security-oauth2-client`
 - Configure Google, Microsoft, and Apple registrations
-- Reactive session with 5-minute expiry and sign-out
-- Thymeleaf home page showing email and full name
+- Protect `/` and redirect signed-out or expired sessions to `/login`
+- Populate the home page from the OIDC principal
+- Reactive session with 5-minute expiry and working sign-out
 - App service in `compose.yaml` for the containerized run
 - MongoDB for user persistence, Redis for session cache
 - Frontend dialog to extend an active session

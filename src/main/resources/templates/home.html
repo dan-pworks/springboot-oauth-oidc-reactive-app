@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Home · PWorks</title>
+	<link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<main class="card">
+	<h1>Welcome</h1>
+	<p class="subtitle">You are signed in</p>
+
+	<dl class="info">
+		<dt>Name</dt>
+		<dd th:text="${name} ?: '—'">—</dd>
+		<dt>Email</dt>
+		<dd th:text="${email} ?: '—'">—</dd>
+	</dl>
+
+	<form th:action="@{/logout}" method="post">
+		<input th:if="${_csrf != null}"
+		       type="hidden"
+		       th:name="${_csrf.parameterName}"
+		       th:value="${_csrf.token}">
+		<button class="btn" type="submit">Sign out</button>
+	</form>
+</main>
+</body>
+</html>
