@@ -1,0 +1,6 @@
+# README Change Log
+
+| Timestamp | Title | Summary of the change(s) |
+| --- | --- | --- |
+| 2026-11-10 09:21:10 EST | Initial scaffold | Created `README.md` with placeholder sections: overview, features, tech stack, prerequisites, configuration, getting started, testing, project structure, contributing, license. Created this log. |
+| 2026-11-10 09:34:41 EST | Project details | Renamed title to PWorks Login and Session Management; added architecture diagram and sign-in flow; set WebFlux, Maven, latest LTS Java and latest stable Spring Boot; added Apple as third identity provider; documented email and full name on the home page plus sign-out; added env var configuration table for all three providers; switched run instructions to Docker Compose; documented the 5-minute in-memory session timeout and the planned extension dialog; added roadmap (MongoDB, Redis, Testcontainers, public GitHub). |
