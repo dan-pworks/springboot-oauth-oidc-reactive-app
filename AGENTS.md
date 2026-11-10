@@ -50,8 +50,13 @@ MVN=$(find ~/.m2/wrapper/dists/apache-maven-3.10.0 -name mvn -type f | head -1)
 - WebFlux defers the CSRF token as a `Mono`; Thymeleaf cannot read it, so
   `SecurityConfig#csrfTokenViewFilter` copies the resolved token to `_csrf`. Remove
   that filter only with a replacement plan for the logout form token.
-- `application.yaml` uses `${MICROSOFT_CLIENT_ID:not-configured}` placeholders so
-  the app boots and tests run without secrets; empty defaults make startup fail.
+- `application.yaml` requires `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, and
+  `MICROSOFT_CLIENT_SECRET` at startup (issuer-uri discovery, no defaults). Tests
+  never see it: `src/test/resources/application.yaml` replaces the main file on
+  the test classpath with dummy endpoints, so edit that file when tests need
+  different config.
+- The sign-in page is `/authenticate` (was `/login`); `/login/**` must stay
+  permitted because the OAuth redirect URI is `/login/oauth2/code/{id}`.
 - Session timeout property is `server.reactive.session.timeout` (present in the
   `spring-boot-web-server` metadata). Sessions are reactive `WebSession`, not
   servlet `HttpSession`; any servlet-style security example is wrong here.

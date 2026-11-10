@@ -27,6 +27,7 @@ Taken from `git log`; the repository history is authoritative.
 
 | Commit | Branch | Summary |
 | --- | --- | --- |
+| `0dcb665` | `feature/add_oidc_oauth_support` | Wired Microsoft OIDC sign-in end to end; renamed login to `/authenticate`; added `SecurityConfig` and offline test configuration |
 | `40a5418` | `feature/add_oidc_oauth_support` | Added `spring-boot-starter-security-oauth2-client` and security test utilities to `pom.xml` |
 | `06f6632` | `main`, `feature/add_login_home_pages` | Added login and home pages, their controllers, `AGENTS.md`, and updated README and LOG |
 | `4eec56e` | `feature/scaffold_project` | Added the Spring Boot project; updated README and LOG |
@@ -59,11 +60,11 @@ Sign-in flow:
 Available now:
 
 - Sign in with Microsoft through OpenID Connect (authorization code flow)
-- Login page at `/login` with **Sign in with Microsoft** and **Sign in with Google**
-  buttons, each with its provider logo
+- Sign-in page at `/authenticate` with **Sign in with Microsoft** and **Sign in
+  with Google** buttons, each with its provider logo
 - Home page at `/` with the user's name and email from the OIDC claims, plus a
   sign-out button
-- Protected routes: anonymous or expired sessions are redirected to `/login`
+- Protected routes: anonymous or expired sessions are redirected to `/authenticate`
 - Session expiry after 5 minutes, in-memory store
 
 Planned:
@@ -76,11 +77,11 @@ Planned:
 
 | Route | Access | Purpose |
 | --- | --- | --- |
-| `GET /login` | Public | Sign-in page with provider buttons |
+| `GET /authenticate` | Public | Sign-in page with provider buttons |
 | `GET /` | Authenticated | Home page with user info and sign-out |
 | `GET /oauth2/authorization/microsoft` | Public | Starts the Microsoft login |
 | `GET /login/oauth2/code/microsoft` | Public | Microsoft redirect URI |
-| `POST /logout` | Authenticated | Closes the session, redirects to `/login?logout` |
+| `POST /logout` | Authenticated | Closes the session, redirects to `/authenticate` |
 | `GET /css/app.css` | Public | Shared stylesheet |
 
 The provider buttons link to `/oauth2/authorization/{registrationId}` with the ids
@@ -129,18 +130,20 @@ button links.
     │   │   ├── security/
     │   │   │   └── SecurityConfig.java
     │   │   └── web/
-    │   │       ├── HomeController.java
-    │   │       └── LoginController.java
+    │   │       ├── AuthenticateController.java
+    │   │       └── HomeController.java
     │   └── resources/
     │       ├── application.yaml
     │       ├── static/css/app.css
     │       └── templates/
-    │           ├── home.html
-    │           └── login.html
+    │           ├── authenticate.html
+    │           └── home.html
     └── test/
-        └── java/com/pworks/web/app/pww/
-            ├── ParraWorksWebApplicationTests.java
-            └── web/PageControllerTests.java
+        ├── java/com/pworks/web/app/pww/
+        │   ├── ParraWorksWebApplicationTests.java
+        │   └── web/PageControllerTests.java
+        └── resources/
+            └── application.yaml          # offline test config
 ```
 
 ## Getting Started
@@ -151,8 +154,8 @@ button links.
 mvn spring-boot:run
 ```
 
-The app starts on <http://localhost:8080>. `/` redirects to `/login` until a user
-signs in with Microsoft.
+The app starts on <http://localhost:8080>. `/` redirects to `/authenticate` until a
+user signs in with Microsoft.
 
 > The wrapper is currently incomplete: `.mvn/wrapper/maven-wrapper.properties` is
 > missing, so `./mvnw` fails. Restore it with `mvn -N wrapper:wrapper` (or by
@@ -174,19 +177,21 @@ service is added in a later milestone.
 
 ### Try it
 
-1. Export `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`.
+1. Export `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, and
+   `MICROSOFT_CLIENT_SECRET`.
 2. Start the app and open <http://localhost:8080>.
-3. You are redirected to `/login`; choose **Sign in with Microsoft**.
+3. You are redirected to `/authenticate`; choose **Sign in with Microsoft**.
 4. Complete the Microsoft sign-in.
 5. The home page shows your name and email, with the sign-out button below.
 6. Sign out, or wait 5 minutes for the session to expire, and you are sent back to
-   the login page.
+   the sign-in page.
 
 The Google button returns 404 until its registration is added.
 
 ## Configuration
 
-`application.yaml` registers Microsoft and sets the session timeout:
+`application.yaml` registers Microsoft with tenant-specific issuer discovery and
+sets the session timeout:
 
 ```yaml
 spring:
@@ -195,18 +200,17 @@ spring:
       client:
         registration:
           microsoft:
-            client-id: ${MICROSOFT_CLIENT_ID:not-configured}
-            client-secret: ${MICROSOFT_CLIENT_SECRET:not-configured}
-            client-name: Microsoft
+            client-id: ${MICROSOFT_CLIENT_ID}
+            client-secret: ${MICROSOFT_CLIENT_SECRET}
             authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-            scope: openid,profile,email
+            scope:
+              - openid
+              - profile
+              - email
+            provider: microsoft
         provider:
           microsoft:
-            authorization-uri: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
-            token-uri: https://login.microsoftonline.com/common/oauth2/v2.0/token
-            jwk-set-uri: https://login.microsoftonline.com/common/discovery/v2.0/keys
-            user-info-uri: https://graph.microsoft.com/oidc/userinfo
+            issuer-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/v2.0
             user-name-attribute: sub
 server:
   reactive:
@@ -214,19 +218,22 @@ server:
       timeout: 5m
 ```
 
-The provider endpoints come from Microsoft's
-[OpenID configuration](https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration).
-They are listed explicitly so the application does not fetch issuer metadata at
-startup.
+The `issuer-uri` makes the app fetch Microsoft's
+[OpenID configuration](https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration)
+for the tenant at startup, so the tenant, client id, and secret must all be set
+before the app can start. `authorization-grant-type` is required: Spring Boot does
+not default it and startup fails without it. The redirect URI defaults to
+`{baseUrl}/login/oauth2/code/{registrationId}`.
 
 | Variable | Description |
 | --- | --- |
+| `MICROSOFT_TENANT_ID` | Entra ID tenant ID, GUID or `common` |
 | `MICROSOFT_CLIENT_ID` | Microsoft Entra ID application (client) ID |
 | `MICROSOFT_CLIENT_SECRET` | Microsoft client secret value |
 
-The `${VAR:not-configured}` defaults keep the app bootable without credentials so
-tests can run; sign-in fails until the variables are set. Google and Apple will be
-added the same way:
+Tests do not need any of these: `src/test/resources/application.yaml` replaces the
+main file on the test classpath with dummy endpoints, so the suite runs offline
+without secrets or issuer discovery. Google and Apple will be added the same way:
 
 | Variable | Planned for |
 | --- | --- |
@@ -244,7 +251,9 @@ added the same way:
   `application.yaml`.
 - Stored in memory only: sessions are lost on restart and are not shared across
   instances.
-- Anonymous or expired sessions are redirected to `/login`.
+- Anonymous or expired sessions are redirected to `/authenticate`.
+- Sign-out redirects to `/authenticate` via a `RedirectServerLogoutSuccessHandler`;
+  the Spring Security default still points at `/login`, which no longer exists.
 - Extending a session from a frontend dialog is planned; no endpoint exists yet.
 
 ## Testing
@@ -256,9 +265,9 @@ mvn test
 Four tests exist:
 
 - `ParraWorksWebApplicationTests.contextLoads()` boots the full context.
-- `PageControllerTests` checks that `/login` is public and offers both providers,
-  that anonymous requests to `/` are redirected to `/login`, and that an
-  authenticated OIDC user sees name, email, and the sign-out form.
+- `PageControllerTests` checks that `/authenticate` is public and offers both
+  providers, that anonymous requests to `/` are redirected to `/authenticate`, and
+  that an authenticated OIDC user sees name, email, and the sign-out form.
 
 Unit tests use JUnit 5 and Mockito. `spring-boot-starter-security-test` supplies
 `mockOidcLogin` for WebTestClient. Integration tests with Testcontainers come later,
