@@ -113,7 +113,8 @@ button links. The public routes themselves live in `application.yaml`
 
 - JDK 25
 - Maven, or a repaired Maven wrapper (see [Getting Started](#getting-started))
-- Docker with Docker Compose — only needed once `compose.yaml` defines services
+- Docker with Docker Compose — only needed once `compose.yaml` defines services. 
+  - <b>Important:</b> <i>Docker Desktop</i> must be running and available to run this app.
 - A Microsoft Entra ID app registration of type **Web** with the redirect URIs
   `http://localhost:8080/login/oauth2/code/microsoft` and
   `http://localhost:8080/authenticate` (the post-logout redirect), and delegated
