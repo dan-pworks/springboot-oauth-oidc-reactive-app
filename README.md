@@ -1,10 +1,10 @@
-# PWorks Login and Session Management
+# PWORKS OAuth/OIDC Web App
 
-Reactive Spring Boot service that signs users in through Google, Microsoft, or Apple
+This a simple Reactive Spring Boot Web App that let you sign in through Microsoft portal
 and manages a short-lived session that shows the signed-in user's email, full name,
 and tokens.
 
-Maven artifact: `parra-works-web` · base package: `com.pworks.web.app.pww`
+Maven artifact: `springboot-oauth-oidc-reactive-app` · base package: `com.pworks.web.app.pww`
 
 ## Project Status
 
@@ -26,17 +26,6 @@ are still pending.
 | Session with 5-minute expiry | Done, in memory |
 | OIDC RP-initiated logout (local and Microsoft session) | Done |
 
-## Recent Commits
-
-Taken from `git log`; the repository history is authoritative.
-
-| Commit | Branch | Summary |
-| --- | --- | --- |
-| `0dcb665` | `feature/add_oidc_oauth_support` | Wired Microsoft OIDC sign-in end to end; renamed login to `/authenticate`; added `SecurityConfig` and offline test configuration |
-| `40a5418` | `feature/add_oidc_oauth_support` | Added `spring-boot-starter-security-oauth2-client` and security test utilities to `pom.xml` |
-| `06f6632` | `main`, `feature/add_login_home_pages` | Added login and home pages, their controllers, `AGENTS.md`, and updated README and LOG |
-| `4eec56e` | `feature/scaffold_project` | Added the Spring Boot project; updated README and LOG |
-| `ee40e21` | initial | Added README and `.gitignore` |
 
 ## Architecture
 
@@ -199,7 +188,7 @@ service is added in a later milestone.
 
 ### Try it
 
-1. Export `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, and
+1. Before you can run the web app, you must add/set the next environment variables: `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, and
    `MICROSOFT_CLIENT_SECRET`.
 2. Start the app and open <http://localhost:8080>.
 3. You are redirected to `/authenticate`; choose **Sign in with Microsoft**.
@@ -275,7 +264,8 @@ Tests do not need any of these: `src/test/resources/application.yaml` replaces t
 main file on the test classpath with dummy endpoints and its own
 `app.security.endpoints.allowed` list, so the suite runs offline without secrets or
 issuer discovery. Keep that file in sync when the main configuration changes.
-Google and Apple will be added the same way:
+
+### Similarly, for Google and Apple can be added the same way:
 
 | Variable | Planned for |
 | --- | --- |
@@ -332,9 +322,9 @@ later, together with MongoDB and Redis.
 
 ## Contributing
 
-The project is currently a local repository only. Branch, commit, and review
-conventions will be documented before the first public push.
+Please, add your comments as GitHub issues. 
+Fork the repo and create a new PR with your proposed changes.
 
 ## License
 
-To be decided before the repository is made public.
+<h4>Apache License 2.0</h4>
