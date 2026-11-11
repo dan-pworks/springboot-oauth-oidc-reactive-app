@@ -4,13 +4,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
 import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler;
 import org.springframework.security.web.server.csrf.CsrfToken;
 import org.springframework.web.server.WebFilter;
 
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Reactive security configuration.
@@ -24,7 +28,15 @@ import reactor.core.publisher.Mono;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-	/**
+	final private SecurityConfigProps secConfigProps;
+	private final ReactiveClientRegistrationRepository clientRegistrationRepository;
+
+    public SecurityConfig(SecurityConfigProps securityConfigProps, ReactiveClientRegistrationRepository clientRegistrationRepository) {
+        this.secConfigProps = securityConfigProps;
+        this.clientRegistrationRepository = clientRegistrationRepository;
+    }
+
+    /**
 	 * Builds the security filter chain for the reactive application.
 	 *
 	 * @param http the reactive HTTP security builder supplied by Spring Security
@@ -32,29 +44,30 @@ public class SecurityConfig {
 	 */
 	@Bean
 	public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+		final List<String> allowedEndpoints = secConfigProps.endpoints.get("allowed");
+
 		return http
 				.authorizeExchange(exchanges ->
 						exchanges
-								.pathMatchers("/authenticate/**","/login/**", "/css/**", "/favicon.ico").permitAll()
+								.pathMatchers(allowedEndpoints.toArray(new String[0])).permitAll()
 								.anyExchange().authenticated()
 				)
 				.oauth2Login(oauth2 -> oauth2.loginPage("/authenticate"))
-				.logout(logout -> logout.logoutSuccessHandler(redirectAfterSignOut()))
+				.logout(logout -> logout.logoutSuccessHandler(oidcLogoutSuccessHandler()))
 				.build();
 	}
 
 	/**
-	 * Redirects to the sign-in page after a successful sign-out.
-	 *
-	 * <p>The default handler redirects to {@code /login?logout}, which no longer
-	 * exists since the sign-in page moved to {@code /authenticate}.</p>
-	 *
-	 * @return a handler that redirects to the sign-in page
+	 * Configures OpenID Connect RP-Initiated Logout to terminate both the
+	 * local session and the upstream Microsoft Entra ID session.
 	 */
-	private ServerLogoutSuccessHandler redirectAfterSignOut() {
-		RedirectServerLogoutSuccessHandler handler = new RedirectServerLogoutSuccessHandler();
-		handler.setLogoutSuccessUrl(java.net.URI.create("/authenticate"));
-		return handler;
+	private ServerLogoutSuccessHandler oidcLogoutSuccessHandler() {
+		final OidcClientInitiatedServerLogoutSuccessHandler logoutSuccessHandler = new OidcClientInitiatedServerLogoutSuccessHandler(clientRegistrationRepository);
+
+		// Sets the post-logout redirect URI to return back to /authenticate
+		logoutSuccessHandler.setPostLogoutRedirectUri("{baseUrl}/authenticate");
+
+		return logoutSuccessHandler;
 	}
 
 	/**
@@ -64,6 +77,15 @@ public class SecurityConfig {
 	 * which Thymeleaf cannot read directly, so the logout form would post without
 	 * a token and be rejected. Resolving the {@code Mono} and storing the value
 	 * under the attribute name Thymeleaf templates use fixes that.</p>
+	 *
+	 * <p>
+	 *     You need CSRF protection in a Spring Boot OAuth2/OIDC client because OAuth2/OIDC is
+	 *     an authentication/authorization framework, not a session security mechanism.
+	 *     Once the OAuth2 dance finishes, the Spring Boot client logs the user in by creating a
+	 *     standard, cookie-based HTTP session (JSESSIONID). Because your application relies on
+	 *     cookies to identify the logged-in user on subsequent requests, it is inherently
+	 *     vulnerable to Cross-Site Request Forgery (CSRF).
+	 * </p>
 	 *
 	 * @return a filter that adds {@code _csrf} to the exchange attributes
 	 */
@@ -76,7 +98,10 @@ public class SecurityConfig {
 			}
 
 			return token
-					.doOnNext(resolved -> exchange.getAttributes().put("_csrf", resolved))
+					.doOnNext(resolved -> {
+						final Map<String, Object> attributes = exchange.getAttributes();
+						attributes.put("_csrf", resolved);
+					})
 					.then(chain.filter(exchange));
 		};
 	}

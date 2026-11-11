@@ -2,6 +2,7 @@ package com.pworks.web.app.pww;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Entry point of the PWorks login application.
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * and shows a short-lived session.</p>
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class ParraWorksWebApplication {
 
 	/**

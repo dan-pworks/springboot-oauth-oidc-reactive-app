@@ -11,20 +11,25 @@
 	<h1>Welcome</h1>
 	<p class="subtitle">You are signed in</p>
 
+	<form th:action="@{/logout}" method="post">
+		<input th:if="${_csrf != null}"
+			   type="hidden"
+			   th:name="${_csrf.parameterName}"
+			   th:value="${_csrf.token}">
+		<button class="btn" type="submit">Sign out</button>
+	</form>
+
 	<dl class="info">
 		<dt>Name</dt>
 		<dd th:text="${name} ?: '—'">—</dd>
 		<dt>Email</dt>
 		<dd th:text="${email} ?: '—'">—</dd>
+		<dt>ID Token</dt>
+		<dd th:text="${idToken} ?: '—'">—</dd>
+		<dt>Access Token</dt>
+		<dd th:text="${accessToken} ?: '—'">—</dd>
 	</dl>
 
-	<form th:action="@{/logout}" method="post">
-		<input th:if="${_csrf != null}"
-		       type="hidden"
-		       th:name="${_csrf.parameterName}"
-		       th:value="${_csrf.token}">
-		<button class="btn" type="submit">Sign out</button>
-	</form>
 </main>
 </body>
 </html>

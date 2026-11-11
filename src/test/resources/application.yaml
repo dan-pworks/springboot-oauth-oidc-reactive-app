@@ -3,7 +3,7 @@
 # issuer-uri metadata fetch at startup.
 spring:
   application:
-    name: parra-works-web
+    name: pw-oauth-app-test
   security:
     oauth2:
       client:
@@ -31,3 +31,13 @@ server:
   reactive:
     session:
       timeout: 5m
+
+app:
+  security:
+    endpoints:
+      allowed:
+          - "/authenticate/**"
+          - "/login/**"
+          - "/css/**"
+          - "/favicon.ico"
+          - "/logout"

@@ -41,16 +41,18 @@ class PageControllerTests {
 	/** A signed-in user sees their name, email, and the sign-out form. */
 	@Test
 	void homePageShowsSignedInUser() {
-		client.mutateWith(mockOidcLogin().idToken(idToken -> idToken
-						.subject("user-1")
-						.claim("name", "Dan Parra")
-						.claim("preferred_username", "dan@example.com")))
+		client.mutateWith(mockOidcLogin().idToken(idToken ->
+						idToken
+								.subject("user-1")
+								.claim("name", "John Doe")
+								.claim("preferred_username", "john@example.com"))
+				)
 				.get().uri("/").exchange()
 				.expectStatus().isOk()
 				.expectBody(String.class)
 				.value(body -> assertThat(body)
-						.contains("Dan Parra")
-						.contains("dan@example.com")
+						.contains("John Doe")
+						.contains("john@example.com")
 						.contains("Sign out")
 						.contains("name=\"_csrf\""));
 	}
